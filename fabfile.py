@@ -5,8 +5,10 @@ env.app = '<project_name>'
 env.hosts = ['web1']
 env.sites_dir = '/opt/sites/'
 env.app_dir = env.sites_dir + env.app
-env.repo = "http://hg.ironlabs.com/<project_name>"
+env.repo = "https://github.com/reinbach/<project_name>"
 env.nginx_conf_dir = "/opt/nginx/conf/sites/"
+
+USE_DB = True
 
 def install():
     """Installs app on server"""
@@ -16,7 +18,7 @@ def install():
         ))
         with cd(env.app_dir):
             # clone repo
-            run("hg clone {repo} master".format(repo=env.repo))
+            run("git clone {repo} master".format(repo=env.repo))
             with cd("master"):
                 run("source {app_dir}/bin/activate && python setup.py install".format(
                     app_dir=env.app_dir
@@ -30,12 +32,13 @@ def install():
                     with cd("settings"):
                         run("rm -f currentenv.py")
                         run("ln -s prod.py currentenv.py")
-                    run("source {app_dir}/bin/activate && python manage.py syncdb".format(
-                        app_dir=env.app_dir
-                    ))
-                    run("source {app_dir}/bin/activate && python manage.py migrate".format(
-                        app_dir=env.app_dir
-                    ))
+                    if USE_DB:
+                        run("source {app_dir}/bin/activate && python manage.py syncdb".format(
+                            app_dir=env.app_dir
+                        ))
+                        run("source {app_dir}/bin/activate && python manage.py migrate".format(
+                            app_dir=env.app_dir
+                        ))
                     run('source {app_dir}/bin/activate && python manage.py collectstatic -v0 --noinput')
         run("/etc/rc.d/uwsgi reload")
         run("/etc/rc.d/nginx reload")
@@ -44,7 +47,7 @@ def update():
     """Updates code base on server"""
     with settings(user="root"):
         with cd("{app_dir}/master".format(app_dir=env.app_dir)):
-            run("hg pull && hg update")
+            run("git pull")
             run("source {app_dir}/bin/activate && pip install -r requirements.txt".format(
                 app_dir=env.app_dir
             ))
@@ -54,12 +57,13 @@ def update():
                 app=env.app
             ))
             with cd("{app}".format(app=env.app)):
-                run("source {app_dir}/bin/activate && python manage.py syncdb".format(
-                    app_dir=env.app_dir
-                ))
-                run("source {app_dir}/bin/activate && python manage.py migrate".format(
-                    app_dir=env.app_dir
-                ))
+                if USE_DB:
+                    run("source {app_dir}/bin/activate && python manage.py syncdb".format(
+                        app_dir=env.app_dir
+                    ))
+                    run("source {app_dir}/bin/activate && python manage.py migrate".format(
+                        app_dir=env.app_dir
+                    ))
                 run('source {app_dir}/bin/activate && python manage.py collectstatic -v0 --noinput'.format(
                     app_dir=env.app_dir
                 ))
